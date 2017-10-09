@@ -10,7 +10,6 @@ provider:
   region: us-east-1
 
   environment:
-    variable1: value1
     bucketname: pdfbucket102017
 
   iamRoleStatements:
@@ -39,8 +38,8 @@ package:
 #  exclude:
 #    # Exclude everything first.
 #    - '**/*'
-  include:
-    - wkhtmltopdf
+#  include:
+#    - wkhtmltopdf
 
 functions:
   pdf:
@@ -51,6 +50,14 @@ functions:
       - http:
           path: pdf
           method: get
+  pdf2:
+    handler: pdf2/wrap.handler
+    timeout: 30
+    memorySize: 1536
+    events:
+      - http:
+          path: pdf2
+          method: get
   html:
     handler: html/wrap.handler
     timeout: 30
@@ -59,15 +66,21 @@ functions:
       - http:
           path: html
           method: get
-#          integration: lambda
-          response:
-            headers:
-              Content-Type: "'text/html'"
+  healthcheck:
+    handler: healthcheck/wrap.handler
+    timeout: 30
+    memorySize: 1536
+    events:
+      - http:
+          path: healthcheck
+          method: get
 
 custom:
   pyIndividually:
     wrap:pdf: pdf/handler.pdf     # mapping to the real handler
+    wrap:pdf2: pdf2/handler.pdf2     # mapping to the real handler
     wrap:html: html/handler.html    # mapping to the real handler
+    wrap:healthcheck: html/handler.healthcheck    # mapping to the real handler
     dockerizedPip: True
 
 plugins:

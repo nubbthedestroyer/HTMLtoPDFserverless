@@ -25,6 +25,7 @@ def pdf(event, context):
 
     # build html object
     params = event['queryStringParameters']
+    print(params['template'])
 
     html = urllib.urlopen(params['template']).read()
 
@@ -48,7 +49,9 @@ def pdf(event, context):
         'margin-bottom': '0.75in',
         'margin-left': '0.75in',
         'encoding': "UTF-8",
-        'no-outline': None
+        'no-outline': None,
+        # 'dpi': 96
+        'print-media-type': True,
         # 'enable-smart-shrinking': True
     }
 
