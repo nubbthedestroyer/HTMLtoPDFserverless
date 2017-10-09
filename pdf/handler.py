@@ -2,7 +2,6 @@ import urllib
 import os
 import uuid
 import boto3
-import pdfkit
 import logging
 
 boto3.set_stream_logger('boto3.resources', logging.DEBUG)
@@ -11,64 +10,62 @@ s3 = boto3.resource('s3')
 
 def pdf(event, context):
 
-    # some variables
-    guid_tag = str(uuid.uuid4())
-    pdf_name = guid_tag + '.pdf'
-    pdf_file = '/tmp/' + pdf_name
-    s3_key = 'pdfs/' + pdf_name
-    location = 'https://s3.amazonaws.com/' + os.environ['bucketname'] + '/' + s3_key
+    error = ''
 
-    print('pdf_name = ' + pdf_name)
-    print('pdf_file = ' + pdf_file)
-    print('s3_key = ' + s3_key)
-    print(location)
+    try:
+        # some variables
+        guid_tag = str(uuid.uuid4())
+        pdf_name = guid_tag + '.pdf'
+        html_name = guid_tag + '.html'
+        pdf_file = '/tmp/' + pdf_name
+        html_file = '/tmp/' + html_name
+        pdf_key = 'pdfs/' + pdf_name
+        html_key = 'html/' + html_name
+        location = 'https://s3.amazonaws.com/' + os.environ['bucketname'] + '/' + pdf_key
+        html_location = 'https://s3.amazonaws.com/' + os.environ['bucketname'] + '/' + html_key
+        chrome_location = 'https://7rlphgn9o6.execute-api.us-west-2.amazonaws.com/dev/chrome?url=' + html_location
 
-    # build html object
-    params = event['queryStringParameters']
-    print(params['template'])
+        print('pdf_name = ' + pdf_name)
+        print('pdf_file = ' + pdf_file)
+        print('s3_key = ' + pdf_key)
+        print(location)
 
-    html = urllib.urlopen(params['template']).read()
+        # build html object
+        params = event['queryStringParameters']
+        print(params['template'])
 
-    for i in params:
-        # print(i)
-        html = html.replace('{{' + i + '}}', params[i])
+        html = urllib.urlopen(params['template']).read()
+        print(html)
 
-    # body = html
+        if 'NoSuchKey' in str(html):
+                error = 422
+                raise Exception('could not find html template')
 
-    # setup wkhtmltopdf binary
-    os.system('rm -rf /tmp/wkhtmltopdf')
-    os.system('cp wkhtmltopdf /tmp/')
-    os.system('chmod +x /tmp/wkhtmltopdf')
+        for i in params:
+            # print(i)
+            html = html.replace('{{' + i + '}}', params[i])
 
-    # set some pdfkit options
-    config = pdfkit.configuration(wkhtmltopdf='/tmp/wkhtmltopdf')
-    options = {
-        'page-size': 'Letter',
-        'margin-top': '0.75in',
-        'margin-right': '0.75in',
-        'margin-bottom': '0.75in',
-        'margin-left': '0.75in',
-        'encoding': "UTF-8",
-        'no-outline': None,
-        # 'dpi': 96
-        'print-media-type': True,
-        # 'enable-smart-shrinking': True
-    }
+        f = open(html_file, 'w')
+        f.write(html)
+        f.close()
 
-    pdfkit.from_string(html, pdf_file,
-                       options=options,
-                       configuration=config)
+        s3.meta.client.upload_file(html_file, os.environ['bucketname'], html_key, ExtraArgs={'ContentType': "text/html", 'ACL': "public-read"})
+        s3.meta.client.put_object_acl(ACL='public-read', Bucket=os.environ['bucketname'], Key=html_key)
 
-    s3.meta.client.upload_file(pdf_file, os.environ['bucketname'], s3_key)
-    s3.meta.client.put_object_acl(ACL='public-read', Bucket=os.environ['bucketname'], Key=s3_key)
-
-    response = {
-        "statusCode": 302,
-        "body": '',
-        "headers": {
-            "Location": location,
-            # "content-type": "application/json",
+    except Exception as exc:
+        if error is None:
+            error = 500
+        response = {
+            "statusCode": error,
+            "body": str(exc),
         }
-    }
-
+    else:
+        response = {
+            "statusCode": 302,
+            "body": '',
+            "headers": {
+                "Location": chrome_location,
+                # "content-type": "application/json",
+            }
+        }
     return response

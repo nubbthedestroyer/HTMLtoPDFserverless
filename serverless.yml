@@ -50,14 +50,6 @@ functions:
       - http:
           path: pdf
           method: get
-  pdf2:
-    handler: pdf2/wrap.handler
-    timeout: 30
-    memorySize: 1536
-    events:
-      - http:
-          path: pdf2
-          method: get
   html:
     handler: html/wrap.handler
     timeout: 30
@@ -78,7 +70,6 @@ functions:
 custom:
   pyIndividually:
     wrap:pdf: pdf/handler.pdf     # mapping to the real handler
-    wrap:pdf2: pdf2/handler.pdf2     # mapping to the real handler
     wrap:html: html/handler.html    # mapping to the real handler
     wrap:healthcheck: html/handler.healthcheck    # mapping to the real handler
     dockerizedPip: True
